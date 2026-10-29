@@ -1,2 +1,0 @@
-# Safena-owner
-Nm
