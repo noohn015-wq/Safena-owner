@@ -6,7 +6,16 @@ body {
   background-color: #f8fafc;
   color: #0f172a;
 }
-#netlify-deploy-badge, 
-iframe[src*="netlify"] {
+
+/* إخفاء شارة نتلايفاي بشكل جذري من الجذور */
+div[id*="netlify"], 
+iframe[src*="netlify"], 
+#netlify-deploy-badge,
+footer div:has(img[alt*="Netlify"]) {
   display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+  max-height: 0 !important;
+  max-width: 0 !important;
 }
