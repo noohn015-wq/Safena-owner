@@ -10,7 +10,7 @@ export function OrderDetails({ order, t }: { order: any; t: any }) {
   const rawStatus = order?.status ? String(order.status).trim().toLowerCase() : "pending";
 
   const getStatusConfig = (status: string) => {
-    if (status === "on_the_way" || status === "on-the-way" || status === "on the way" || status === "delivering" || status === "في الطريق") {
+    if (status === "on_the_way" || status === "ontheway" || status === "on_the_way" || status === "on the way" || status === "في الطريق") {
       return { label: t?.statusOnWay || "في الطريق", color: "bg-blue-100 text-blue-700", icon: Bike };
     }
     if (status === "delivered" || status === "completed" || status === "تم التوصيل") {
