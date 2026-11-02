@@ -10,7 +10,7 @@ export function OrderDetails({ order, t }: { order: any; t: any }) {
   const rawStatus = order?.status ? order.status.trim() : "pending";
 
   const getStatusConfig = (status: string) => {
-    if (status === "on_the_way" || status === "delivering" || status === "on the way" || status === "في الطريق") {
+    if (status === "on_the_way" || status === "delivering" || status === "on_the_way" || status === "في الطريق") {
       return { label: t?.statusOnWay || "في الطريق", color: "bg-blue-100 text-blue-700", icon: Bike };
     }
     if (status === "delivered" || status === "completed" || status === "تم التوصيل") {
@@ -23,7 +23,7 @@ export function OrderDetails({ order, t }: { order: any; t: any }) {
   const StatusIcon = config.icon;
 
   const isDelivered = rawStatus === "delivered" || rawStatus === "completed" || rawStatus === "تم التوصيل";
-  const isOnWay = rawStatus === "on_the_way" || rawStatus === "delivering" || rawStatus === "on the way" || rawStatus === "في الطريق" || isDelivered;
+  const isOnWay = rawStatus === "on_the_way" || rawStatus === "delivering" || rawStatus === "on_the_way" || rawStatus === "في الطريق" || isDelivered;
 
   const orderIdShort = order?.id ? order.id.slice(-4) : (order?.$id ? order.$id.slice(-4) : '0000');
 
