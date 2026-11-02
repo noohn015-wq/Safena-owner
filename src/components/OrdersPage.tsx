@@ -42,7 +42,6 @@ export function OrdersPage({ t, lang, user, setPage, onSelectOrder }: any) {
       const filteredOrders = response.documents.filter((doc: any) => {
         const orderId = doc.$id || doc.id;
         
-        // إذا كان الطلب قد انتهى وقام المستخدم بحذفه سابقاً، لا نقوم بعرضه نهائياً حتى لو بقي في قاعدة البيانات
         const isExpiredLocally = localStorage.getItem(`expired_${orderId}`) === "true";
         if (isExpiredLocally) return false;
 
@@ -78,14 +77,12 @@ export function OrdersPage({ t, lang, user, setPage, onSelectOrder }: any) {
     };
   }, [user]);
 
-  // مؤقت دقيقة واحدة (60 ثانية) مع منع ظهوره بعد انتهائه نهائياً
   useEffect(() => {
     const timer = setInterval(() => {
       setOrders(prevOrders => {
         return prevOrders.map(order => {
           const orderId = order.$id || order.id;
           
-          // إذا كان الطلب منتهي مسبقاً، نزيله مباشرة
           if (localStorage.getItem(`expired_${orderId}`) === "true") {
             return null;
           }
@@ -108,18 +105,16 @@ export function OrdersPage({ t, lang, user, setPage, onSelectOrder }: any) {
             setDeliveredTimers(curr => ({ ...curr, [orderId]: remaining > 0 ? remaining : 0 }));
 
             if (remaining <= 0) {
-              // تسجيل أن هذا الطلب انتهى نهائياً في الذاكرة لكي لا يعود أبداً عند الـ Refresh
               localStorage.setItem(`expired_${orderId}`, "true");
               localStorage.removeItem(storageKey);
 
-              // محاولة حذفه من قاعدة البيانات في الخلفية
               databases.deleteDocument(
                 APPWRITE_CONFIG.databaseId,
                 APPWRITE_CONFIG.ordersCollectionId,
                 orderId
               ).catch(err => console.error("Failed to delete expired order from server:", err));
 
-              return null; // إزالة الطلب من الواجهة فوراً
+              return null;
             }
           }
           return order;
@@ -193,7 +188,7 @@ export function OrdersPage({ t, lang, user, setPage, onSelectOrder }: any) {
         <div className="flex flex-col gap-3">
           {orders.map((order: any) => {
             const statusInfo = getStatusInfo(order.status);
-            const fullId = order.$id || order.id || "";
+            const fullId = order.order_id || order.$id || order.id || "";
             const numericOnly = fullId.replace(/\D/g, "");
             const orderId = numericOnly.length >= 3 ? numericOnly.slice(-4) : Math.abs(fullId.split("").reduce((acc: number, char: string) => acc + char.charCodeAt(0), 0)).toString().slice(-4);
             
