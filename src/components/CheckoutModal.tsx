@@ -42,24 +42,24 @@ export function CheckoutModal({ t, lang, user, addresses, onClose, onConfirm, ca
       // توليد معرف فريد للطلب واستخدامه
       const orderIdDoc = ID.unique();
 
-      // 1. إرسال الطلب إلى جدول الطلبات (orders)
+      // 1. إرسال الطلب إلى جدول الطلبات (orders) مع تضمين order_id صريح إن احتجته داخل الحقول
       await databases.createDocument(
         APPWRITE_DATABASE_ID,
         ORDERS_TABLE_ID,
         orderIdDoc,
         {
-          order_id: orderIdDoc,
+          order_id: orderIdDoc, // إضافة المعرف صريحاً داخل الحقول إذا كانت القاعدة تدعمه
           customer_name: customerName,
           customer_phone: customerPhone,
           user_id: currentUserId,
           total: Number(cartTotal) || 0,
           items: formattedItems,
           location: location || "الموقع",
-          status: "pending"
+          status: "pending" // تم تصحيح القيمة لتتطابق مع قاعدة البيانات
         }
       );
 
-      // 2. إرسال وتخزين بيانات الزائر فوراً باستخدام المعرف الحقيقي لجدول visits
+      // 2. إرسال وتخزين بيانات الزائر فوراً إلى جدول الزوار (visits) باستخدام المعرف الحقيقي
       try {
         await databases.createDocument(
           APPWRITE_DATABASE_ID,
@@ -93,4 +93,6 @@ export function CheckoutModal({ t, lang, user, addresses, onClose, onConfirm, ca
           <Button
             onClick={handleConfirm}
             disabled={isDisabled}
-            className="rounded-full
+            className="rounded-full bg-gradient-to-br from-amber-400 to-orange-500 px-4 py-2 text-sm font-bold text-slate-950 shadow-sm transition-transform hover:scale-105 hover:from-amber-500 hover:to-orange-600 disabled:opacity-50 disabled:hover:scale-100"
+          >
+            <Send className="mx-1
