@@ -18,11 +18,14 @@ export function ComplaintsPage({ t, user }: any) {
     setSubmitting(true);
 
     try {
+      const complaintIdDoc = ID.unique();
+
       await databases.createDocument(
         APPWRITE_DATABASE_ID,
         COMPLAINTS_TABLE_ID,
-        ID.unique(),
+        complaintIdDoc,
         {
+          complaint_id: complaintIdDoc, // إضافة المعرف صريحاً لقاعدة البيانات
           customer_name: user?.name || "عميل",
           customer_phone: user?.phone || "00000000",
           subject: subject,
@@ -31,7 +34,6 @@ export function ComplaintsPage({ t, user }: any) {
         }
       );
 
-      // تم حذف الـ alert نهائياً لكي لا تظهر نافذة المتصفح المزعجة
       setSubmitted(true);
       setSubject("");
       setDetails("");
