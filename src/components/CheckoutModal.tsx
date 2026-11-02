@@ -55,7 +55,7 @@ export function CheckoutModal({ t, lang, user, addresses, onClose, onConfirm, ca
           total: Number(cartTotal) || 0,
           items: formattedItems,
           location: location || "الموقع",
-          status: "preparing"
+          status: "pending" // تم تصحيح القيمة لتتطابق مع قاعدة البيانات
         }
       );
 
