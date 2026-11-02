@@ -6,11 +6,11 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { OrderMap } from "@/components/OrderMap";
 
 export function OrderDetails({ order, t }: { order: any; t: any }) {
-  // استقبال الحالة البرمجية بالإنجليزية من قاعدة البيانات وتوفير قيمة افتراضية آمنة
-  const rawStatus = order?.status ? order.status.trim() : "pending";
+  // تنظيف النص والتأكد من جلب الحالة بأمان
+  const rawStatus = order?.status ? String(order.status).trim().toLowerCase() : "pending";
 
   const getStatusConfig = (status: string) => {
-    if (status === "on_the_way" || status === "delivering" || status === "on_the_way" || status === "في الطريق") {
+    if (status === "on_the_way" || status === "on-the-way" || status === "on the way" || status === "delivering" || status === "في الطريق") {
       return { label: t?.statusOnWay || "في الطريق", color: "bg-blue-100 text-blue-700", icon: Bike };
     }
     if (status === "delivered" || status === "completed" || status === "تم التوصيل") {
@@ -22,8 +22,9 @@ export function OrderDetails({ order, t }: { order: any; t: any }) {
   const config = getStatusConfig(rawStatus);
   const StatusIcon = config.icon;
 
+  // تصحيح الشروط وتغطية الحالات البرمجية بدقة
   const isDelivered = rawStatus === "delivered" || rawStatus === "completed" || rawStatus === "تم التوصيل";
-  const isOnWay = rawStatus === "on_the_way" || rawStatus === "delivering" || rawStatus === "on_the_way" || rawStatus === "في الطريق" || isDelivered;
+  const isOnWay = rawStatus === "on_the_way" || rawStatus === "on-the-way" || rawStatus === "on the way" || rawStatus === "delivering" || rawStatus === "في الطريق" || isDelivered;
 
   const orderIdShort = order?.id ? order.id.slice(-4) : (order?.$id ? order.$id.slice(-4) : '0000');
 
@@ -102,7 +103,7 @@ export function OrderDetails({ order, t }: { order: any; t: any }) {
       <div className="mt-4">
         <h4 className="mb-2 text-sm font-bold text-slate-700 dark:text-slate-300">عنوان التوصيل</h4>
         <div className="flex items-start gap-2 rounded-xl bg-slate-50 p-3 dark:bg-slate-800">
-          <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-yellow-600"  />
+          <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-yellow-600" />
           <p className="text-sm text-slate-600 dark:text-slate-300">{order?.address || order?.location || "العنوان بالتفصيل"}</p>
         </div>
       </div>
