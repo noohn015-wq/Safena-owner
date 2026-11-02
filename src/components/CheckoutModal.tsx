@@ -7,7 +7,7 @@ import { databases, account, APPWRITE_DATABASE_ID, ORDERS_TABLE_ID } from "@/lib
 import { ID } from "appwrite";
 import { cn } from "@/lib/utils";
 
-export default function CheckoutModal({ t, lang, user, addresses, onClose, onConfirm, cartItems, cartTotal }: any) {
+export function CheckoutModal({ t, lang, user, addresses, onClose, onConfirm, cartItems, cartTotal }: any) {
   const [selectedLocation, setSelectedLocation] = useState<string | null>(null);
   const [newLocation, setNewLocation] = useState("");
   const [isNew, setIsNew] = useState(false);
