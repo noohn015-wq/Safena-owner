@@ -63,7 +63,7 @@ export function CheckoutModal({ t, lang, user, addresses, onClose, onConfirm, ca
       try {
         await databases.createDocument(
           APPWRITE_DATABASE_ID,
-          '6ae8fb0c002bf0f1ecad', // تم تصحيح معرف جدول الزوار الحقيقي من لوحة التحكم
+          '6ae8fb0c002bf0f1ecad',
           ID.unique(),
           {
             customer_name: customerName,
@@ -93,15 +93,4 @@ export function CheckoutModal({ t, lang, user, addresses, onClose, onConfirm, ca
           <Button
             onClick={handleConfirm}
             disabled={isDisabled}
-            className="rounded-full bg-gradient-to-br from-amber-400 to-orange-500 px-4 py-2 text-sm font-bold text-slate-950 shadow-sm transition-transform hover:scale-105 hover:from-amber-500 hover:to-orange-600 disabled:opacity-50 disabled:hover:scale-100"
-          >
-            <Send className="mx-1 h-4 w-4" />
-            {t.sendOrder}
-          </Button>
-          <CardTitle className="text-lg font-bold text-slate-800 dark:text-white">{t.selectLocation}</CardTitle>
-          <Button variant="ghost" size="icon" onClick={onClose} className="rounded-full">
-            <X className="h-5 w-5" />
-          </Button>
-        </CardHeader>
-
-        <CardContent className="flex flex-1 flex-col gap-4 overflow-y
+            className="rounded-full
