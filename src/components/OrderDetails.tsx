@@ -6,13 +6,14 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { OrderMap } from "@/components/OrderMap";
 
 export function OrderDetails({ order, t }: { order: any; t: any }) {
-  const rawStatus = order.status ? order.status.trim() : "قيد التحضير";
+  // استقبال الحالة البرمجية بالإنجليزية من قاعدة البيانات وتوفير قيمة افتراضية آمنة
+  const rawStatus = order?.status ? order.status.trim() : "pending";
 
   const getStatusConfig = (status: string) => {
-    if (status === "في الطريق" || status === "delivering" || status === "on_way") {
+    if (status === "on_the_way" || status === "delivering" || status === "on the way" || status === "في الطريق") {
       return { label: t?.statusOnWay || "في الطريق", color: "bg-blue-100 text-blue-700", icon: Bike };
     }
-    if (status === "تم التوصيل" || status === "completed" || status === "delivered") {
+    if (status === "delivered" || status === "completed" || status === "تم التوصيل") {
       return { label: t?.statusDelivered || "تم التوصيل", color: "bg-emerald-100 text-emerald-700", icon: CheckCircle2 };
     }
     return { label: t?.statusPreparing || "قيد التحضير", color: "bg-amber-100 text-amber-700", icon: UtensilsCrossed };
@@ -21,10 +22,10 @@ export function OrderDetails({ order, t }: { order: any; t: any }) {
   const config = getStatusConfig(rawStatus);
   const StatusIcon = config.icon;
 
-  const isDelivered = rawStatus === "تم التوصيل" || rawStatus === "completed" || rawStatus === "delivered";
-  const isOnWay = rawStatus === "في الطريق" || rawStatus === "delivering" || rawStatus === "on_way" || isDelivered;
+  const isDelivered = rawStatus === "delivered" || rawStatus === "completed" || rawStatus === "تم التوصيل";
+  const isOnWay = rawStatus === "on_the_way" || rawStatus === "delivering" || rawStatus === "on the way" || rawStatus === "في الطريق" || isDelivered;
 
-  const orderIdShort = order.id ? order.id.slice(-4) : (order.$id ? order.$id.slice(-4) : '0000');
+  const orderIdShort = order?.id ? order.id.slice(-4) : (order?.$id ? order.$id.slice(-4) : '0000');
 
   return (
     <div className="p-5" dir="rtl">
@@ -80,14 +81,14 @@ export function OrderDetails({ order, t }: { order: any; t: any }) {
         <div className="flex items-center gap-3 rounded-xl bg-slate-50 p-3 dark:bg-slate-800">
           <Avatar className="h-10 w-10">
             <AvatarFallback className="bg-yellow-100 text-xs font-bold text-yellow-700">
-              {order.customerName || order.customer ? (order.customerName || order.customer).split(" ").map((n: string) => n[0]).join("") : "زب"}
+              {(order?.customerName || order?.customer) ? (order.customerName || order.customer).split(" ").map((n: string) => n[0]).join("") : "زب"}
             </AvatarFallback>
           </Avatar>
           <div className="flex-1">
-            <p className="text-sm font-bold text-slate-900 dark:text-white">{order.customerName || order.customer || "العميل"}</p>
-            <p className="text-xs text-slate-500 dark:text-slate-400" dir="ltr">{order.phone || order.customer_phone}</p>
+            <p className="text-sm font-bold text-slate-900 dark:text-white">{order?.customerName || order?.customer || "العميل"}</p>
+            <p className="text-xs text-slate-500 dark:text-slate-400" dir="ltr">{order?.phone || order?.customer_phone}</p>
           </div>
-          {(order.phone || order.customer_phone) && (
+          {(order?.phone || order?.customer_phone) && (
             <a href={`tel:${order.phone || order.customer_phone}`}>
               <Button variant="outline" size="icon" className="h-8 w-8 rounded-lg border-slate-200 dark:border-slate-700">
                 <Phone className="h-4 w-4 text-slate-600 dark:text-slate-300" />
@@ -101,8 +102,8 @@ export function OrderDetails({ order, t }: { order: any; t: any }) {
       <div className="mt-4">
         <h4 className="mb-2 text-sm font-bold text-slate-700 dark:text-slate-300">عنوان التوصيل</h4>
         <div className="flex items-start gap-2 rounded-xl bg-slate-50 p-3 dark:bg-slate-800">
-          <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-yellow-600" />
-          <p className="text-sm text-slate-600 dark:text-slate-300">{order.address || order.location || "العنوان بالتفصيل"}</p>
+          <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-yellow-600"  />
+          <p className="text-sm text-slate-600 dark:text-slate-300">{order?.address || order?.location || "العنوان بالتفصيل"}</p>
         </div>
       </div>
 
@@ -114,7 +115,7 @@ export function OrderDetails({ order, t }: { order: any; t: any }) {
         <div className="space-y-2">
           <div className="flex items-center justify-between">
             <span className="text-base font-bold text-slate-900 dark:text-white">الإجمالي</span>
-            <span className="text-lg font-bold text-yellow-600 dark:text-yellow-400">{order.total || 0} {t?.currency || "ل.س"}</span>
+            <span className="text-lg font-bold text-yellow-600 dark:text-yellow-400">{order?.total || 0} {t?.currency || "ل.س"}</span>
           </div>
         </div>
       </div>
