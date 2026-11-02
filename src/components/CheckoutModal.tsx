@@ -1,178 +1,259 @@
-import { useState } from "react";
-import { CheckCircle2, Home, Briefcase, Navigation, Send, X } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Package, Bike, Phone, ChevronLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardHeader, CardTitle, CardContent, CardFooter } from "@/components/ui/card";
-import { Textarea } from "@/components/ui/textarea";
-import { databases, account, APPWRITE_DATABASE_ID, ORDERS_TABLE_ID } from "@/lib/appwrite";
-import { ID } from "appwrite";
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { databases, client, APPWRITE_CONFIG } from "@/lib/appwrite";
+import { Query } from "appwrite";
 
-export function CheckoutModal({ t, lang, user, addresses, onClose, onConfirm, cartItems, cartTotal }: any) {
-  const [selectedLocation, setSelectedLocation] = useState<string | null>(null);
-  const [newLocation, setNewLocation] = useState("");
-  const [isNew, setIsNew] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+export function OrdersPage({ t, lang, user, setPage, onSelectOrder }: any) {
+  const [orders, setOrders] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [deliveredTimers, setDeliveredTimers] = useState<{ [key: string]: number }>({});
 
-  const handleConfirm = async () => {
-    const location = isNew ? newLocation.trim() : selectedLocation;
-    if (!location) return;
-
-    setIsSubmitting(true);
-
+  const fetchUserOrders = async () => {
     try {
-      let currentUserId = user?.$id || user?.id || "guest";
-      try {
-        if (!user?.$id && !user?.id) {
-          const currentUser = await account.get();
-          if (currentUser?.$id) currentUserId = currentUser.$id;
-        }
-      } catch (e) {
-        // تجاهل خطأ الجلسة
+      if (!user?.phone) {
+        setOrders([]);
+        setLoading(false);
+        return;
       }
 
-      const formattedItems = (cartItems || []).map((item: any) => {
-        const nameVal = typeof item.name === 'object' ? (item.name?.ar || item.name?.en || '') : (item.name || item.title || '');
-        const qty = item.qty || item.quantity || 1;
-        return `${nameVal} (x${qty})`;
-      }).filter(Boolean).join(' / ');
-
-      const customerName = user?.name || user?.fullName || "عميل";
-      const customerPhone = user?.phone || user?.phoneNumber || "00000000";
-
-      // توليد معرف فريد للطلب واستخدامه
-      const orderIdDoc = ID.unique();
-
-      // 1. إرسال الطلب إلى جدول الطلبات (orders) مع تضمين order_id صريح إن احتجته داخل الحقول
-      await databases.createDocument(
-        APPWRITE_DATABASE_ID,
-        ORDERS_TABLE_ID,
-        orderIdDoc,
-        {
-          order_id: orderIdDoc, // إضافة المعرف صريحاً داخل الحقول إذا كانت القاعدة تدعمه
-          customer_name: customerName,
-          customer_phone: customerPhone,
-          user_id: currentUserId,
-          total: Number(cartTotal) || 0,
-          items: formattedItems,
-          location: location || "الموقع",
-          status: "preparing"
-        }
-      );
-
-      // 2. إرسال وتخزين بيانات الزائر فوراً إلى جدول الزوار (visits)
+      let response;
       try {
-        await databases.createDocument(
-          APPWRITE_DATABASE_ID,
-          'visits',
-          ID.unique(),
-          {
-            customer_name: customerName,
-            customer_phone: customerPhone,
-            location: location || "الموقع",
-          }
+        response = await databases.listDocuments(
+          APPWRITE_CONFIG.databaseId,
+          APPWRITE_CONFIG.ordersCollectionId,
+          [
+            Query.orderDesc('$createdAt'),
+            Query.limit(50)
+          ]
         );
-      } catch (visitErr) {
-        console.error("فشل تسجيل الزائر في جدول visits:", visitErr);
+      } catch (err) {
+        response = await databases.listDocuments(
+          APPWRITE_CONFIG.databaseId,
+          APPWRITE_CONFIG.ordersCollectionId,
+          [Query.limit(50)]
+        );
       }
 
-      setIsSubmitting(false);
-      onConfirm(location);
-    } catch (error: any) {
-      console.error("Error details:", error);
-      alert("السبب الحقيقي: " + (error?.message || JSON.stringify(error)));
-      setIsSubmitting(false);
+      const userCleanPhone = String(user.phone).replace(/\D/g, "");
+      const filteredOrders = response.documents.filter((doc: any) => {
+        const orderId = doc.$id || doc.id;
+        
+        const isExpiredLocally = localStorage.getItem(`expired_${orderId}`) === "true";
+        if (isExpiredLocally) return false;
+
+        const docPhone = String(doc.customer_phone || doc.phone || "").replace(/\D/g, "");
+        if (!docPhone) return false;
+        return docPhone.endsWith(userCleanPhone.slice(-9)) || userCleanPhone.endsWith(docPhone.slice(-9));
+      });
+
+      setOrders(filteredOrders);
+    } catch (error) {
+      console.error("Error fetching orders:", error);
+    } finally {
+      setLoading(false);
     }
   };
 
-  const isDisabled = (!isNew && !selectedLocation) || (isNew && !newLocation.trim()) || isSubmitting;
+  useEffect(() => {
+    fetchUserOrders();
+
+    const channel = `databases.${APPWRITE_CONFIG.databaseId}.collections.${APPWRITE_CONFIG.ordersCollectionId}.documents`;
+    const unsubscribe = client.subscribe(channel, (response) => {
+      if (
+        response.events.includes("databases.*.collections.*.documents.*.update") ||
+        response.events.includes("databases.*.collections.*.documents.*.create") ||
+        response.events.includes("databases.*.collections.*.documents.*.delete")
+      ) {
+        fetchUserOrders();
+      }
+    });
+
+    return () => {
+      unsubscribe();
+    };
+  }, [user]);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setOrders(prevOrders => {
+        return prevOrders.map(order => {
+          const orderId = order.$id || order.id;
+          
+          if (localStorage.getItem(`expired_${orderId}`) === "true") {
+            return null;
+          }
+
+          const st = (order.status || "").trim().toLowerCase();
+          const isDelivered = st === "delivered" || st === "completed" || st === "تم التوصيل";
+
+          if (isDelivered) {
+            const storageKey = `timer_start_${orderId}`;
+            let startTime = Number(localStorage.getItem(storageKey));
+
+            if (!startTime || isNaN(startTime)) {
+              startTime = Date.now();
+              localStorage.setItem(storageKey, String(startTime));
+            }
+
+            const elapsedSeconds = Math.floor((Date.now() - startTime) / 1000);
+            const remaining = 60 - elapsedSeconds;
+
+            setDeliveredTimers(curr => ({ ...curr, [orderId]: remaining > 0 ? remaining : 0 }));
+
+            if (remaining <= 0) {
+              localStorage.setItem(`expired_${orderId}`, "true");
+              localStorage.removeItem(storageKey);
+
+              databases.deleteDocument(
+                APPWRITE_CONFIG.databaseId,
+                APPWRITE_CONFIG.ordersCollectionId,
+                orderId
+              ).catch(err => console.error("Failed to delete expired order from server:", err));
+
+              return null;
+            }
+          }
+          return order;
+        }).filter(Boolean);
+      });
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, []);
+
+  const getStatusInfo = (rawStatus: string) => {
+    const status = rawStatus ? rawStatus.trim().toLowerCase() : "preparing";
+    
+    if (status === "onway" || status === "on_way" || status === "delivering" || status === "في الطريق") {
+      return {
+        label: t?.statusOnWay || "السائق في طريقه إليك",
+        color: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400"
+      };
+    }
+    if (status === "delivered" || status === "completed" || status === "تم التوصيل") {
+      return {
+        label: t?.statusDelivered || "تم التوصيل",
+        color: "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
+      };
+    }
+    if (status === "cancelled" || status === "ملغي") {
+      return {
+        label: t?.statusCancelled || "ملغي",
+        color: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
+      };
+    }
+    return {
+      label: t?.statusPreparing || "قيد التحضير",
+      color: "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400"
+    };
+  };
+
+  const parseOrderItems = (itemsData: any) => {
+    if (!itemsData) return [];
+    try {
+      if (typeof itemsData === 'string') {
+        const parsed = JSON.parse(itemsData);
+        return Array.isArray(parsed) ? parsed : [{ name: itemsData, qty: 1 }];
+      }
+      return Array.isArray(itemsData) ? itemsData : [itemsData];
+    } catch (e) {
+      return [{ name: String(itemsData), qty: 1 }];
+    }
+  };
+
+  if (loading) {
+    return <div className="p-10 text-center text-slate-500">جاري تحميل طلباتك...</div>;
+  }
 
   return (
-    <div className="absolute inset-0 z-[60] flex items-end justify-center bg-black/50 backdrop-blur-sm">
-      <Card className="flex max-h-[85vh] w-full flex-col rounded-t-3xl border-yellow-200 p-0 shadow-2xl dark:border-slate-700 dark:bg-slate-800">
-        <CardHeader className="flex flex-row items-center justify-between p-4">
-          <Button
-            onClick={handleConfirm}
-            disabled={isDisabled}
-            className="rounded-full bg-gradient-to-br from-amber-400 to-orange-500 px-4 py-2 text-sm font-bold text-slate-950 shadow-sm transition-transform hover:scale-105 hover:from-amber-500 hover:to-orange-600 disabled:opacity-50 disabled:hover:scale-100"
-          >
-            <Send className="mx-1 h-4 w-4" />
-            {t.sendOrder}
-          </Button>
-          <CardTitle className="text-lg font-bold text-slate-800 dark:text-white">{t.selectLocation}</CardTitle>
-          <Button variant="ghost" size="icon" onClick={onClose} className="rounded-full">
-            <X className="h-5 w-5" />
-          </Button>
-        </CardHeader>
-
-        <CardContent className="flex flex-1 flex-col gap-4 overflow-y-auto p-4 pt-0">
-          <div className="flex gap-2 rounded-full bg-yellow-50 p-1 dark:bg-slate-700">
-            <button
-              className={cn("flex-1 rounded-full py-2 text-sm font-semibold transition-all", !isNew ? "bg-gradient-to-br from-amber-400 to-orange-500 text-slate-950" : "text-slate-500")}
-              onClick={() => setIsNew(false)}
-            >
-              {t.savedLocations}
-            </button>
-            <button
-              className={cn("flex-1 rounded-full py-2 text-sm font-semibold transition-all", isNew ? "bg-gradient-to-br from-amber-400 to-orange-500 text-slate-950" : "text-slate-500")}
-              onClick={() => setIsNew(true)}
-            >
-              {t.newLocation}
-            </button>
+    <div className="flex flex-col gap-4 p-4 pt-12 pb-24" dir="rtl">
+      <h1 className="text-2xl font-bold text-slate-900 dark:text-white">{t?.orders || "طلباتي"}</h1>
+      
+      {orders.length === 0 ? (
+        <div className="flex flex-col items-center justify-center gap-4 py-20 text-center">
+          <Package className="h-16 w-16 text-yellow-400 dark:text-yellow-500" />
+          <div>
+            <h2 className="text-lg font-bold text-slate-800 dark:text-slate-100">{t?.emptyOrders || "لا توجد طلبات سابقة"}</h2>
+            <p className="text-sm text-slate-500 dark:text-slate-400">{t?.emptyOrdersDesc || "لم تقم بأي طلبات حتى الآن"}</p>
           </div>
-
-          {!isNew ? (
-            <div className="flex flex-col gap-2">
-              {addresses.length === 0 ? (
-                <p className="text-center text-sm text-slate-400">{t.noAddresses}</p>
-              ) : (
-                addresses.map((addr: any) => (
-                  <button
-                    key={addr.id}
-                    onClick={() => setSelectedLocation(addr.details)}
-                    className={cn(
-                      "flex items-center gap-3 rounded-xl border-2 p-3 text-start transition-all",
-                      selectedLocation === addr.details ? "border-orange-500 bg-orange-50/50 dark:bg-yellow-900/20" : "border-transparent bg-white dark:bg-slate-700"
-                    )}
-                  >
-                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-yellow-100 dark:bg-slate-600">
-                      {addr.label.includes(t.home) || addr.label.toLowerCase().includes("home") ? <Home className="h-5 w-5 text-yellow-600" /> : <Briefcase className="h-5 w-5 text-yellow-600" />}
-                    </div>
-                    <div>
-                      <h3 className="font-bold text-slate-800 dark:text-white">{addr.label}</h3>
-                      <p className="text-xs text-slate-500 dark:text-slate-400">{addr.details}</p>
-                    </div>
-                    {selectedLocation === addr.details && <CheckCircle2 className="ms-auto h-5 w-5 text-orange-500" />}
-                  </button>
-                ))
-              )}
-            </div>
-          ) : (
-            <div className="flex flex-col gap-2">
-              <Textarea
-                value={newLocation}
-                onChange={(e) => setNewLocation(e.target.value)}
-                placeholder={t.addressDetails}
-                rows={4}
-                className="rounded-xl dark:border-slate-600 dark:bg-slate-700"
-              />
-              <Button variant="outline" className="flex items-center justify-center gap-2 rounded-xl border-orange-200 text-orange-600 hover:bg-orange-50 dark:hover:bg-slate-600">
-                <Navigation className="h-4 w-4" /> تحديد على الخريطة
-              </Button>
-            </div>
-          )}
-        </CardContent>
-
-        <CardFooter className="sticky bottom-0 z-[999] border-t border-yellow-100 bg-white p-4 dark:border-slate-700 dark:bg-slate-800">
-          <Button
-            onClick={handleConfirm}
-            disabled={isDisabled}
-            className="w-full rounded-full bg-gradient-to-br from-amber-400 to-orange-500 py-6 text-base font-bold text-slate-950 shadow-md transition-transform hover:scale-[1.02] hover:from-amber-500 hover:to-orange-600 disabled:opacity-50 disabled:hover:scale-100"
-          >
-            <Send className="mx-2 h-5 w-5" />
-            {t.confirmAndSend}
+          <Button onClick={() => setPage("home")} className="rounded-full bg-yellow-400 text-slate-900 hover:bg-yellow-500 font-bold">
+            {t?.startOrder || "ابدأ الطلب الان"}
           </Button>
-        </CardFooter>
-      </Card>
+        </div>
+      ) : (
+        <div className="flex flex-col gap-3">
+          {orders.map((order: any) => {
+            const statusInfo = getStatusInfo(order.status);
+            const fullId = order.order_id || order.$id || order.id || "";
+            const numericOnly = fullId.replace(/\D/g, "");
+            const orderId = numericOnly.length >= 3 ? numericOnly.slice(-4) : Math.abs(fullId.split("").reduce((acc: number, char: string) => acc + char.charCodeAt(0), 0)).toString().slice(-4);
+            
+            const items = parseOrderItems(order.items);
+
+            const st = (order.status || "").trim().toLowerCase();
+            const isDelivered = st === "delivered" || st === "completed" || st === "تم التوصيل";
+            let remainingText = "";
+            if (isDelivered) {
+              const currentOrderId = order.$id || order.id;
+              const remaining = deliveredTimers[currentOrderId] !== undefined ? deliveredTimers[currentOrderId] : 60;
+              const minutes = Math.floor(remaining / 60);
+              const seconds = remaining % 60;
+              remainingText = ` (يختفي خلال ${minutes}:${seconds < 10 ? '0' : ''}${seconds})`;
+            }
+
+            return (
+              <Card 
+                key={order.$id || order.id} 
+                onClick={() => onSelectOrder && onSelectOrder(order)}
+                className="border-yellow-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800 cursor-pointer hover:border-yellow-400 transition-all"
+              >
+                <CardHeader className="flex flex-row items-center justify-between p-4 pb-2">
+                  <div>
+                    <CardTitle className="text-base text-slate-900 dark:text-white flex items-center gap-2">
+                      <span>رقم الطلب #{orderId}</span>
+                      <ChevronLeft className="h-4 w-4 text-slate-400" />
+                    </CardTitle>
+                    <CardDescription className="text-xs text-slate-600 dark:text-slate-400">
+                      {order.$createdAt ? new Date(order.$createdAt).toLocaleDateString() : ""}
+                    </CardDescription>
+                  </div>
+                  <Badge className={cn("font-semibold border-0", statusInfo.color)}>
+                    {statusInfo.label} {remainingText}
+                  </Badge>
+                </CardHeader>
+                
+                <CardContent className="p-4 pt-0">
+                  <div className="mb-3 flex flex-wrap gap-2 pt-2">
+                    {items.length > 0 ? (
+                      items.map((item: any, idx: number) => {
+                        const itemName = typeof item.name === 'object' 
+                          ? (item.name[lang] || item.name.ar || item.name.en || "وجبة") 
+                          : (item.name || "وجبة");
+                        return (
+                          <Badge key={idx} variant="outline" className="border-yellow-300 bg-yellow-50 text-yellow-800 dark:border-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400">
+                            {item.qty || 1}x {itemName}
+                          </Badge>
+                        );
+                      })
+                    ) : (
+                      <span className="text-xs text-slate-500">تفاصيل الطلب مسجلة</span>
+                    )}
+                  </div>
+
+                  <div className="flex items-center justify-between text-sm text-slate-600 dark:text-slate-400 mt-2 border-t border-slate-100 dark:border-slate-700/50 pt-3">
+                    <span>{items.length > 0 ? `${items.length} أصناف` : "التفاصيل"}</span>
+                    <span className="font-bold text-slate-900 dark:text-white">{order.total} ل.س</span>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
