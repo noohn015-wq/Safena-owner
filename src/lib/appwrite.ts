@@ -1,9 +1,9 @@
 import { Client, Account, Databases } from 'appwrite';
 
 export const APPWRITE_CONFIG = {
-  endpoint: 'https://tor.cloud.appwrite.io/v1',
-  projectId: '6a658f7200183d84195b',
-  databaseId: '6a65915e00291cf7f54c',
+  endpoint: 'https://nyc.cloud.appwrite.io/v1',
+  projectId: '6ae8f88c0038a40c7030',
+  databaseId: '6ae8fb0c002bf0f1ecad',
   ordersCollectionId: 'orders',
   complaintsCollectionId: 'complaints',
   visitsCollectionId: 'visits', // <--- إضافة جدول الزوار لموقع العميل
