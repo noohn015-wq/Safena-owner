@@ -39,12 +39,16 @@ export function CheckoutModal({ t, lang, user, addresses, onClose, onConfirm, ca
       const customerName = user?.name || user?.fullName || "عميل";
       const customerPhone = user?.phone || user?.phoneNumber || "00000000";
 
-      // 1. إرسال الطلب إلى جدول الطلبات (orders)
+      // توليد معرف فريد للطلب واستخدامه
+      const orderIdDoc = ID.unique();
+
+      // 1. إرسال الطلب إلى جدول الطلبات (orders) مع تضمين order_id صريح إن احتجته داخل الحقول
       await databases.createDocument(
         APPWRITE_DATABASE_ID,
         ORDERS_TABLE_ID,
-        ID.unique(),
+        orderIdDoc,
         {
+          order_id: orderIdDoc, // إضافة المعرف صريحاً داخل الحقول إذا كانت القاعدة تدعمه
           customer_name: customerName,
           customer_phone: customerPhone,
           user_id: currentUserId,
@@ -59,7 +63,7 @@ export function CheckoutModal({ t, lang, user, addresses, onClose, onConfirm, ca
       try {
         await databases.createDocument(
           APPWRITE_DATABASE_ID,
-          'visits', // معرف جدول الزوار
+          'visits',
           ID.unique(),
           {
             customer_name: customerName,
